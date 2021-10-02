@@ -118,10 +118,10 @@ def serve(index) -> dict:
         if IS_BAD_SERVER == 1:
             logging.debug("Bad Server")
             cost *= 5
-            cost *= replicas
+            # cost *= replicas
         # print("cost:", cost) # DEBUG
 
-    p = 10_000
+    p = 1_000
     for i in range(cost):
         largestPrime(p)
     LOCAL_RESPONSE_TIME = time.time() - start
@@ -136,7 +136,7 @@ def serve(index) -> dict:
             s = e.args[0].args[0].split()
             host = s[0].split('=')[1].split(',')[0]
             port = s[1].split('=')[1].split(')')[0]
-            
+
             TOTAL_RESPONSE_TIME = time.time() - start
             
             return failure_response("{}:{}".format(host, port), 404)
