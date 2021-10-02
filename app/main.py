@@ -81,7 +81,8 @@ def serve(index) -> dict:
     global TOTAL_RESPONSE_TIME
     start = time.time()
 
-    logger = logging.getLogger("mico_serve_logger")
+    # logger = logging.getLogger("mico_serve_logger")
+    logging.basicConfig(filename="mico.log")
 
     index = list({index})[0] # get the number from the param
     data = parse_config() # get config data
@@ -115,6 +116,7 @@ def serve(index) -> dict:
 
         # print("bad server?", IS_BAD_SERVER) # DEBUG
         if IS_BAD_SERVER == 1:
+            logging.debug("Bad Server")
             cost *= 5
             cost *= replicas
         # print("cost:", cost) # DEBUG
