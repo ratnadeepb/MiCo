@@ -23,7 +23,8 @@ import joblib
 import logging
 import random
 
-LATEST_RESPONSE_TIME = 0
+LOCAL_RESPONSE_TIME = 0
+TOTAL_RESPONSE_TIME = 0
 
 app = Flask(__name__)
 
@@ -61,7 +62,11 @@ def mem_usage():
 @app.route("/statistics", methods=['GET'])
 def get_stats() -> dict:
     """ Get data about CPU and memory usage """
-    return {'cpu': cpu_usage(), 'mem': mem_usage(), 'response_time':  LATEST_RESPONSE_TIME }
+    return {'cpu': cpu_usage(),
+            'mem': mem_usage(),
+            'local_response_time':  LOCAL_RESPONSE_TIME,
+            'total_response_time': TOTAL_RESPONSE_TIME
+    }
 
 def failure_response(url: str, status: int) -> Response:
     """ Send failure response """
@@ -72,6 +77,10 @@ IS_BAD_SERVER = -1
 @app.route('/svc/<int:index>', methods=['GET'])
 def serve(index) -> dict:
     """ Main workhorse function of the app """
+    global LOCAL_RESPONSE_TIME
+    global TOTAL_RESPONSE_TIME
+    start = time.time()
+
     logger = logging.getLogger("mico_serve_logger")
 
     index = list({index})[0] # get the number from the param
@@ -111,11 +120,9 @@ def serve(index) -> dict:
         # print("cost:", cost) # DEBUG
 
     p = 10_000
-    global LATEST_RESPONSE_TIME
-    start = time.time()
     for i in range(cost):
         largestPrime(p)
-    LATEST_RESPONSE_TIME = time.time() - start
+    LOCAL_RESPONSE_TIME = time.time() - start
 
     if urls is None: # url list is empty => this is a leaf node
         return {'urls': None, 'cost': cost }
@@ -127,8 +134,10 @@ def serve(index) -> dict:
             host = s[0].split('=')[1].split(',')[0]
             port = s[1].split('=')[1].split(')')[0]
             return failure_response("{}:{}".format(host, port), 404)
+    
+    TOTAL_RESPONSE_TIME = time.time() - start
 
-        return {'urls': list(urls), 'cost': cost} # doesn't matter what is returned
+    return {'urls': list(urls), 'cost': cost} # doesn't matter what is returned
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0')
