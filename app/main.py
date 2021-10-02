@@ -125,6 +125,7 @@ def serve(index) -> dict:
     LOCAL_RESPONSE_TIME = time.time() - start
 
     if urls is None: # url list is empty => this is a leaf node
+        TOTAL_RESPONSE_TIME = time.time() - start
         return {'urls': None, 'cost': cost }
     else: # non-leaf node
         try: # request might fail
@@ -133,11 +134,14 @@ def serve(index) -> dict:
             s = e.args[0].args[0].split()
             host = s[0].split('=')[1].split(',')[0]
             port = s[1].split('=')[1].split(')')[0]
+            
+            TOTAL_RESPONSE_TIME = time.time() - start
+            
             return failure_response("{}:{}".format(host, port), 404)
     
-    TOTAL_RESPONSE_TIME = time.time() - start
+        TOTAL_RESPONSE_TIME = time.time() - start
 
-    return {'urls': list(urls), 'cost': cost} # doesn't matter what is returned
+        return {'urls': list(urls), 'cost': cost} # doesn't matter what is returned
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0')
