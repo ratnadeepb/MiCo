@@ -103,12 +103,12 @@ export PORT_NUM=$(kubectl get svc testapp-svc-0 -o go-template='{{range.spec.por
 wget https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64
 chmod +x hey_linux_amd64
 sudo mv hey_linux_amd64 /usr/local/bin/hey
-hey -z 5m -disable-keepalive http://localhost:$(PORT_NUM)/svc/0
+hey -z 5m -disable-keepalive http://localhost:$PORT_NUM/svc/0
 ```
 
 ### Apache Benchmark
 
 ```bash
 sudo apt install apache2-utils
-ab -n 500 -c 10 -s 9999 http://localhost:$(PORT_NUM)/svc/0
+ab -n 500 -c 10 -s 9999 http://localhost:$PORT_NUM/svc/0
 ```
