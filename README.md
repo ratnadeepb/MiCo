@@ -88,7 +88,6 @@ indicate that the service should have a few pods with a higher response times. T
 
 ```python
 cost *= 5
-cost *= replicas
 ```
 
 ## Testing with hey
