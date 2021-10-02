@@ -7,5 +7,5 @@ then
     exit
 fi
 echo "building $image"
-sudo docker build -t ratnadeepb/testapp .
+sudo docker build -t $image .
 sudo docker push $image
