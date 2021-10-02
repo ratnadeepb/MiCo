@@ -22,7 +22,8 @@ from requests.exceptions import ConnectionError
 import joblib
 import logging
 import random
-import math
+
+LATEST_RESPONSE_TIME = 0
 
 app = Flask(__name__)
 
@@ -60,7 +61,7 @@ def mem_usage():
 @app.route("/statistics", methods=['GET'])
 def get_stats() -> dict:
     """ Get data about CPU and memory usage """
-    return {'cpu': cpu_usage(), 'mem': mem_usage() }
+    return {'cpu': cpu_usage(), 'mem': mem_usage(), 'response_time':  LATEST_RESPONSE_TIME }
 
 def failure_response(url: str, status: int) -> Response:
     """ Send failure response """
@@ -89,7 +90,7 @@ def serve(index) -> dict:
         # the number of replicas will inform the chance of a replica failing
         replicas = d['replicas']
         prob = 1 / replicas
-        print("prob:", prob)
+        # print("prob:", prob) # debug
 
 
         # based on how many replicas there are some servers are bad
@@ -103,14 +104,18 @@ def serve(index) -> dict:
                 else:
                     IS_BAD_SERVER = 0
 
-        print("bad server?", IS_BAD_SERVER) # DEBUG
+        # print("bad server?", IS_BAD_SERVER) # DEBUG
         if IS_BAD_SERVER == 1:
             cost *= 5
-        print("cost:", cost) # DEBUG
+            cost *= replicas
+        # print("cost:", cost) # DEBUG
 
     p = 10_000
+    global LATEST_RESPONSE_TIME
+    start = time.time()
     for i in range(cost):
         largestPrime(p)
+    LATEST_RESPONSE_TIME = time.time() - start
 
     if urls is None: # url list is empty => this is a leaf node
         return {'urls': None, 'cost': cost }
