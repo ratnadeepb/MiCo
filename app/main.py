@@ -21,11 +21,30 @@ import requests
 from requests.exceptions import ConnectionError
 import joblib
 import logging
+import random
+import math
 
 app = Flask(__name__)
 
+def isPrime(x) -> bool:
+    k = 0
+    for i in range(2, x // 2 + 1):
+        if(x % i==0):
+            k = k + 1
+    if k <= 0:
+        return True
+    else:
+        return False
+
+def largestPrime(x) -> int:
+    prime = -1
+    for num in range(x):
+        if isPrime(num):
+            prime = num
+    return prime
+
 def parse_config() -> list:
-    """ Parsse the config file """
+    """ Parse the config file """
     with open("config.yaml", 'r') as y:
         read_data = yaml.load(y, Loader=yaml.FullLoader)
     return read_data
@@ -43,9 +62,11 @@ def get_stats() -> dict:
     """ Get data about CPU and memory usage """
     return {'cpu': cpu_usage(), 'mem': mem_usage() }
 
-def failure_response(url, status):
+def failure_response(url: str, status: int) -> Response:
     """ Send failure response """
     return Response('Error: failed to access {}\n'.format(url), status=status)
+
+IS_BAD_SERVER = -1
 
 @app.route('/svc/<int:index>', methods=['GET'])
 def serve(index) -> dict:
@@ -62,13 +83,40 @@ def serve(index) -> dict:
     urls = d['svc'] # get all urls to be called
     cost = d['cost'] # cost of this call
 
-    time.sleep(cost) # sleep for time = cost -> TODO: we should change this to something useful
-    
+    # the configuration server says if we want a bad component amongst
+    bads = d['bads']
+    if bads == 1:
+        # the number of replicas will inform the chance of a replica failing
+        replicas = d['replicas']
+        prob = 1 / replicas
+        print("prob:", prob)
+
+
+        # based on how many replicas there are some servers are bad
+        # but as of now, we only want leaf nodes to be potentially bad
+        # we want to see if the problem potentially floats up
+        global IS_BAD_SERVER
+        if urls == None: # if this is a leaf node
+            if IS_BAD_SERVER == -1: # we want to change this value only once (as of now bad servers are bad from the start and don't flip over to the good side)
+                if random.random() > prob:
+                    IS_BAD_SERVER = 1
+                else:
+                    IS_BAD_SERVER = 0
+
+        print("bad server?", IS_BAD_SERVER) # DEBUG
+        if IS_BAD_SERVER == 1:
+            cost *= 5
+        print("cost:", cost) # DEBUG
+
+    p = 10_000
+    for i in range(cost):
+        largestPrime(p)
+
     if urls is None: # url list is empty => this is a leaf node
         return {'urls': None, 'cost': cost }
     else: # non-leaf node
         try: # request might fail
-            responses = joblib.Parallel(prefer="threads", n_jobs=len(urls))((delayed(requests.get)("http://{}".format(url)) for url in urls))
+            _ = joblib.Parallel(prefer="threads", n_jobs=len(urls))((delayed(requests.get)("http://{}".format(url)) for url in urls))
         except ConnectionError as e: # send page not found if it does
             s = e.args[0].args[0].split()
             host = s[0].split('=')[1].split(',')[0]

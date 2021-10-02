@@ -4,14 +4,18 @@
     - testapp-svc-2:5000/svc/2
   replicas: 2
   cost: 20
+  bads: 0
 
 - index: 1
   svc:
     - testapp-svc-2:5000/svc/2
   replicas: 4
   cost: 2
+  bads: 0
 
 - index: 2
   svc:
   replicas: 2
   cost: 4
+  bads: 1
+  
