@@ -66,12 +66,9 @@ Note: MiCo makes no timing guaranteess, i.e. the ***yellow*** reponse from `App3
 
 ## Workhorse of the tool
 
-The workhorse of the tool is a simple function that returns its argument doubled
+The workhorse of the tool is a function that finds the largest prime number lesser than a given number by checking each number smaller than the argument.
 
-```python
-def worker(p: int) -> int:
-  return p * 2
-```
+The `cost` of the function is implemented by running this prime finding function `cost` times with a for loop.
 
 ## Note
 
@@ -79,4 +76,26 @@ It is advisable to define the name of the image as an environment variable:
 
 ```bash
 export IMG_NAME=<image_name>
+```
+
+## Testing Response Times with Heavy Queuing at Leaf Nodes
+
+```yaml
+bads = 1
+```
+
+indicate that the service should have a few pods with a higher response times. This is done by artificially making the worker function more expensive by
+
+```python
+cost *= 5
+cost *= replicas
+```
+
+## Testing with hey
+
+```bash
+wget https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64
+chmod +x hey_linux_amd64
+sudo mv hey_linux_amd64 /usr/local/bin/hey
+hey -z 5m -disable-keepalive http://localhost:30284/svc/0
 ```
