@@ -126,6 +126,8 @@ Then follow the rest from this [solution](https://www.scmgalaxy.com/tutorials/ku
 
 ## Autoscaling
 
+This script parses the [k8s_deployment](k8s_deployment/) folder to scale horizontally scale all services.
+
 ```bash
 ./autoscale.py <cpu_threshold>
 ```
