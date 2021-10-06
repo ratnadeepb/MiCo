@@ -90,6 +90,8 @@ indicate that the service should have a few pods with a higher response times. T
 cost *= 5
 ```
 
+Candidates for this higher response time is selected randomly. The number of replicas in the service decides how many leaf nodes are `bad`
+
 ## Testing with hey
 
 ```bash
