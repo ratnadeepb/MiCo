@@ -113,3 +113,19 @@ hey -z 5m -disable-keepalive http://localhost:$PORT_NUM/svc/0
 sudo apt install apache2-utils
 ab -n 500 -c 10 -s 9999 http://localhost:$PORT_NUM/svc/0
 ```
+
+## Deploy Metric Server
+
+```bash
+wget https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.5.1/components.yaml
+```
+
+The latest metrics server is available [here](https://github.com/kubernetes-sigs/metrics-server/releases)
+
+Then follow the rest from this [solution](https://www.scmgalaxy.com/tutorials/kubernetes-metrics-server-error-readiness-probe-failed-http-probe-failed-with-statuscode/)
+
+## Autoscaling
+
+```bash
+./autoscale.py <cpu_threshold>
+```
