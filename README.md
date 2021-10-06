@@ -124,6 +124,14 @@ The latest metrics server is available [here](https://github.com/kubernetes-sigs
 
 Then follow the rest from this [solution](https://www.scmgalaxy.com/tutorials/kubernetes-metrics-server-error-readiness-probe-failed-http-probe-failed-with-statuscode/)
 
+Add `- --kubelet-insecure-tls` in `deployment.spec.template.spec.containers.args`
+
+```bash
+kubectl apply -f components.yaml
+kubectl top nodes
+kubectl top pods
+```
+
 ## Autoscaling
 
 This script parses the [k8s_deployment](k8s_deployment/) folder to scale horizontally scale all services.
