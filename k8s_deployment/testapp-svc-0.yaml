@@ -4,7 +4,7 @@ metadata:
   name: testapp-svc-0
 spec:
   ports:
-  - port: 6000
+  - port: 5000
     protocol: TCP
     targetPort: 5000
   selector:
@@ -30,7 +30,14 @@ spec:
         app: testapp-svc-0
     spec:
       containers:
-      - image: ratnadeepb/testapp
+      - image: ratnadeepb/testapp:latest
         name: testapp-svc-0
         ports:
         - containerPort: 5000
+        resources:
+          limits:
+            cpu: 1
+            memory: 100Mi
+          requests:
+            cpu: 100m
+            memory: 50Mi
