@@ -3,7 +3,7 @@
     - testapp-svc-1:5000/svc/1
     - testapp-svc-2:5000/svc/2
   replicas: 2
-  cost: 5
+  cost: 2
   bads: 0
 
 - index: 1
