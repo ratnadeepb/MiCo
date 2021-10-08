@@ -37,4 +37,4 @@ if __name__ == "__main__":
         usage()
     else:
         THRESHOLD = int(sys.argv[1])
-    get_num_svcs(THRESHOLD)
+    scale_deps(THRESHOLD)
