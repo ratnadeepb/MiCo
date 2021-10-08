@@ -56,7 +56,7 @@ def writeConfig(image):
                                                                         {'containerPort': 5000}
                                                                     ],
                                                                     'resources': {'limits': {'memory': '100Mi', 'cpu': '1500m'},
-                                                                                'requests': {'memory': '50Mi', 'cpu': '100m'}
+                                                                                'requests': {'memory': '50Mi', 'cpu': '1000m'}
                                                                     }
                                                     }]}
                                     },
