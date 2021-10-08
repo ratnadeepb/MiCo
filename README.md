@@ -45,7 +45,7 @@ Define the topology in [`app/config.yaml`](app/config.yaml). Refer to [configura
 chmod +x create_yaml.py app/docker_build.sh deploy_topo.sh
 cd app && ./docker_build.sh <image_name> && cd - # build the container image
 ./create_yaml.py <image_name> # create the K8s service and deployement config files
-./deploy_topo.sh # deploy the entire topology
+. deploy_topo.sh # deploy the entire topology and export PORT_NUM
 ```
 
 ## Flow of Requests
