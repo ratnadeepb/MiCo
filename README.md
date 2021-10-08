@@ -139,3 +139,5 @@ This script parses the [k8s_deployment](k8s_deployment/) folder to scale horizon
 ```bash
 ./autoscale.py <cpu_threshold>
 ```
+
+**Note**: The hpa can't retrieve current utilisation unless resource limits are set up in the yaml files.
