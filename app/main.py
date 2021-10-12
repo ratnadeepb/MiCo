@@ -10,9 +10,11 @@
             calling `/statistics` return CPU and memory usage in percent
 """
 
-from flask import Flask
+from flask import Flask, request
 from flask.wrappers import Response
 from joblib.parallel import delayed
+from opentracing.propagation import Format
+from opentracing.tracer import child_of
 import yaml
 import sys
 import time
@@ -22,6 +24,9 @@ from requests.exceptions import ConnectionError
 import joblib
 import logging
 import random
+# from jaeger_client import Config
+# from flask_opentracing import FlaskTracing
+import opentracing
 
 LOCAL_RESPONSE_TIME = 0
 TOTAL_RESPONSE_TIME = 0
@@ -30,15 +35,17 @@ FREQ = 0
 
 app = Flask(__name__)
 
+
 def isPrime(x) -> bool:
     k = 0
     for i in range(2, x // 2 + 1):
-        if(x % i==0):
+        if(x % i == 0):
             k = k + 1
     if k <= 0:
         return True
     else:
         return False
+
 
 def largestPrime(x) -> int:
     prime = -1
@@ -47,19 +54,23 @@ def largestPrime(x) -> int:
             prime = num
     return prime
 
+
 def parse_config() -> list:
     """ Parse the config file """
     with open("config.yaml", 'r') as y:
         read_data = yaml.load(y, Loader=yaml.FullLoader)
     return read_data
 
+
 def cpu_usage() -> float:
     """ Get CPU usage """
     return psutil.cpu_percent(interval=0.5)
 
+
 def mem_usage():
     """ Get memory usage """
     return psutil.virtual_memory().percent
+
 
 @app.route("/statistics", methods=['GET'])
 def get_stats() -> dict:
@@ -69,13 +80,30 @@ def get_stats() -> dict:
             'local_response_time':  LOCAL_RESPONSE_TIME,
             'total_response_time': TOTAL_RESPONSE_TIME,
             'perf_counter': FREQ
-    }
+            }
+
 
 def failure_response(url: str, status: int) -> Response:
     """ Send failure response """
     return Response('Error: failed to access {}\n'.format(url), status=status)
 
+
 IS_BAD_SERVER = -1
+
+
+def before_request(headers, method, url, tracer: opentracing.global_tracer):
+    span_context = tracer.extract(
+        format=Format.HTTP_HEADERS,
+        carrier=headers
+    )
+
+    span = tracer.start_span(
+        child_of(span_context),
+        operation_name=method,
+    )
+
+    span.set_tag("http.url", url)
+
 
 @app.route('/svc/<int:index>', methods=['GET'])
 def serve(index) -> dict:
@@ -85,6 +113,8 @@ def serve(index) -> dict:
     global START_TIME
     global FREQ
 
+    headers = request.headers
+    method = request.method
     # measure how many requests are we getting
     tmp = time.perf_counter()
     FREQ = tmp - START_TIME
@@ -95,15 +125,15 @@ def serve(index) -> dict:
     # logger = logging.getLogger("mico_serve_logger")
     logging.basicConfig(filename="mico.log")
 
-    index = list({index})[0] # get the number from the param
-    data = parse_config() # get config data
-    if len(data) < index + 1: # number of elements in the config should equal to or more than the index
+    index = list({index})[0]  # get the number from the param
+    data = parse_config()  # get config data
+    if len(data) < index + 1:  # number of elements in the config should equal to or more than the index
         sys.stderr.write("Error: Config file does not contain correct index")
         return failure_response("svc-{} doesn't exist".format(index), 500)
 
-    d = data[index] # get the config for the given index
-    urls = d['svc'] # get all urls to be called
-    cost = d['cost'] # cost of this call
+    d = data[index]  # get the config for the given index
+    urls = d['svc']  # get all urls to be called
+    cost = d['cost']  # cost of this call
 
     # the configuration server says if we want a bad component amongst
     bads = d['bads']
@@ -113,13 +143,13 @@ def serve(index) -> dict:
         prob = 1 / replicas
         # print("prob:", prob) # debug
 
-
         # based on how many replicas there are some servers are bad
         # but as of now, we only want leaf nodes to be potentially bad
         # we want to see if the problem potentially floats up
         global IS_BAD_SERVER
-        if urls == None: # if this is a leaf node
-            if IS_BAD_SERVER == -1: # we want to change this value only once (as of now bad servers are bad from the start and don't flip over to the good side)
+        if urls == None:  # if this is a leaf node
+            # we want to change this value only once (as of now bad servers are bad from the start and don't flip over to the good side)
+            if IS_BAD_SERVER == -1:
                 if random.random() > prob:
                     IS_BAD_SERVER = 1
                 else:
@@ -137,24 +167,27 @@ def serve(index) -> dict:
         largestPrime(p)
     LOCAL_RESPONSE_TIME = time.perf_counter() - start
 
-    if urls is None: # url list is empty => this is a leaf node
+    if urls is None:  # url list is empty => this is a leaf node
         TOTAL_RESPONSE_TIME = time.time() - start
-        return {'urls': None, 'cost': cost }
-    else: # non-leaf node
-        try: # request might fail
-            _ = joblib.Parallel(prefer="threads", n_jobs=len(urls))((delayed(requests.get)("http://{}".format(url)) for url in urls))
-        except ConnectionError as e: # send page not found if it does
+        return {'urls': None, 'cost': cost}
+    else:  # non-leaf node
+        try:  # request might fail
+            _ = joblib.Parallel(prefer="threads", n_jobs=len(urls))(
+                (delayed(requests.get)("http://{}".format(url)) for url in urls))
+        except ConnectionError as e:  # send page not found if it does
             s = e.args[0].args[0].split()
             host = s[0].split('=')[1].split(',')[0]
             port = s[1].split('=')[1].split(')')[0]
 
             TOTAL_RESPONSE_TIME = time.perf_counter() - start
-            
+
             return failure_response("{}:{}".format(host, port), 404)
-    
+
         TOTAL_RESPONSE_TIME = time.perf_counter() - start
 
-        return {'urls': list(urls), 'cost': cost} # doesn't matter what is returned
+        # doesn't matter what is returned
+        return {'urls': list(urls), 'cost': cost}
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0')

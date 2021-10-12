@@ -5,6 +5,7 @@ import yaml
 
 DEP_DIR = "k8s_deployment/"
 
+
 def parse_config() -> dict:
     """
         Get number of layers and replicas in each layer
@@ -15,8 +16,10 @@ def parse_config() -> dict:
         read_data = yaml.load(y, Loader=yaml.FullLoader)
 
     for i in range(len(read_data)):
-        data[read_data[i]['index']] = [read_data[i]['cost'], read_data[i]['replicas']]
+        data[read_data[i]['index']] = [
+            read_data[i]['cost'], read_data[i]['replicas']]
     return data
+
 
 def scale_deps(threshold):
     data = parse_config()
@@ -26,9 +29,11 @@ def scale_deps(threshold):
         cmd = f"kubectl autoscale deployment {name.split('.')[0]} --min=1 --max={max_pods} --cpu-percent={threshold}"
         os.system(cmd)
 
+
 def usage():
     print(f"{__file__} <cpu_threshold>")
     print(f"Using default CPU threshold of {THRESHOLD}")
+
 
 if __name__ == "__main__":
     THRESHOLD = 50

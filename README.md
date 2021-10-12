@@ -141,3 +141,13 @@ This script parses the [k8s_deployment](k8s_deployment/) folder to scale horizon
 ```
 
 **Note**: The hpa can't retrieve current utilisation unless resource limits are set up in the yaml files.
+
+## OpenTelemetry
+
+```bash
+pip3 install opentelemetry-launcher opentelemetry-instrumentation-flask opentelemetry-instrumentation-requests
+
+```
+
+kubectl port-forward $(kubectl get pods -l=app="testapp-svc-0" -o name) 8000:8000
+

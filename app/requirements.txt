@@ -3,3 +3,5 @@ psutil
 pyyaml
 requests
 joblib
+Flask-Opentracing
+jaeger-client
