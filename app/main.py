@@ -10,7 +10,7 @@
             calling `/statistics` return CPU and memory usage in percent
 """
 
-from flask import Flask
+from flask import Flask, request
 from flask.wrappers import Response
 from joblib.parallel import delayed
 import yaml
@@ -22,23 +22,49 @@ from requests.exceptions import ConnectionError
 import joblib
 import logging
 import random
+from jaeger_client import Config
+from opentracing.ext import tags
+from opentracing.propagation import Format
 
 LOCAL_RESPONSE_TIME = 0
 TOTAL_RESPONSE_TIME = 0
 START_TIME = time.perf_counter()
 FREQ = 0
 
+
+def init_tracer(service):
+    logging.getLogger('').handlers = []
+    logging.basicConfig(format='%(message)s', level=logging.DEBUG)
+
+    config = Config(
+        config={
+            'sampler': {
+                'type': 'const',
+                'param': 1,
+            },
+            'logging': True,
+        },
+        service_name=service
+    )
+
+    return config.initialize_tracer()
+
+
+tracer = init_tracer('testapp-svc')
+
 app = Flask(__name__)
+
 
 def isPrime(x) -> bool:
     k = 0
     for i in range(2, x // 2 + 1):
-        if(x % i==0):
+        if(x % i == 0):
             k = k + 1
     if k <= 0:
         return True
     else:
         return False
+
 
 def largestPrime(x) -> int:
     prime = -1
@@ -47,19 +73,23 @@ def largestPrime(x) -> int:
             prime = num
     return prime
 
+
 def parse_config() -> list:
     """ Parse the config file """
     with open("config.yaml", 'r') as y:
         read_data = yaml.load(y, Loader=yaml.FullLoader)
     return read_data
 
+
 def cpu_usage() -> float:
     """ Get CPU usage """
     return psutil.cpu_percent(interval=0.5)
 
+
 def mem_usage():
     """ Get memory usage """
     return psutil.virtual_memory().percent
+
 
 @app.route("/statistics", methods=['GET'])
 def get_stats() -> dict:
@@ -69,13 +99,58 @@ def get_stats() -> dict:
             'local_response_time':  LOCAL_RESPONSE_TIME,
             'total_response_time': TOTAL_RESPONSE_TIME,
             'perf_counter': FREQ
-    }
+            }
+
 
 def failure_response(url: str, status: int) -> Response:
     """ Send failure response """
     return Response('Error: failed to access {}\n'.format(url), status=status)
 
+
 IS_BAD_SERVER = -1
+
+
+def http_get(url: str) -> requests.models.Response:
+    """ This is a helper function so we can instrument the calls """
+    span = tracer.active_span
+    span.set_tag(tags.HTTP_METHOD, 'GET')
+    span.set_tag(tags.HTTP_URL, url)
+    span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
+    headers = {}
+    tracer.inject(span, Format.HTTP_HEADERS, headers)
+    requests.get(url, headers=headers)
+
+
+def serve_fn(start, cost, urls, index):
+    p = 1_000
+    span = tracer.active_span
+    span.log_kv(
+        {'index': index, 'event': 'ranging-over-cost', 'cost': cost})
+    for i in range(cost):
+        largestPrime(p)
+    LOCAL_RESPONSE_TIME = time.perf_counter() - start
+
+    if urls is None:  # url list is empty => this is a leaf node
+        TOTAL_RESPONSE_TIME = time.time() - start
+        return {'urls': None, 'cost': cost}
+    else:  # non-leaf node
+        try:  # request might fail
+            _ = joblib.Parallel(prefer="threads", n_jobs=len(urls))(
+                (delayed(http_get)("http://{}".format(url)) for url in urls))
+        except ConnectionError as e:  # send page not found if it does
+            s = e.args[0].args[0].split()
+            host = s[0].split('=')[1].split(',')[0]
+            port = s[1].split('=')[1].split(')')[0]
+
+            TOTAL_RESPONSE_TIME = time.perf_counter() - start
+
+            return failure_response("{}:{}".format(host, port), 404)
+
+        TOTAL_RESPONSE_TIME = time.perf_counter() - start
+
+        # doesn't matter what is returned
+        return {'urls': list(urls), 'cost': cost}
+
 
 @app.route('/svc/<int:index>', methods=['GET'])
 def serve(index) -> dict:
@@ -95,15 +170,15 @@ def serve(index) -> dict:
     # logger = logging.getLogger("mico_serve_logger")
     logging.basicConfig(filename="mico.log")
 
-    index = list({index})[0] # get the number from the param
-    data = parse_config() # get config data
-    if len(data) < index + 1: # number of elements in the config should equal to or more than the index
+    index = list({index})[0]  # get the number from the param
+    data = parse_config()  # get config data
+    if len(data) < index + 1:  # number of elements in the config should equal to or more than the index
         sys.stderr.write("Error: Config file does not contain correct index")
         return failure_response("svc-{} doesn't exist".format(index), 500)
 
-    d = data[index] # get the config for the given index
-    urls = d['svc'] # get all urls to be called
-    cost = d['cost'] # cost of this call
+    d = data[index]  # get the config for the given index
+    urls = d['svc']  # get all urls to be called
+    cost = d['cost']  # cost of this call
 
     # the configuration server says if we want a bad component amongst
     bads = d['bads']
@@ -113,13 +188,13 @@ def serve(index) -> dict:
         prob = 1 / replicas
         # print("prob:", prob) # debug
 
-
         # based on how many replicas there are some servers are bad
         # but as of now, we only want leaf nodes to be potentially bad
         # we want to see if the problem potentially floats up
         global IS_BAD_SERVER
-        if urls == None: # if this is a leaf node
-            if IS_BAD_SERVER == -1: # we want to change this value only once (as of now bad servers are bad from the start and don't flip over to the good side)
+        if urls == None:  # if this is a leaf node
+            # we want to change this value only once (as of now bad servers are bad from the start and don't flip over to the good side)
+            if IS_BAD_SERVER == -1:
                 if random.random() > prob:
                     IS_BAD_SERVER = 1
                 else:
@@ -132,29 +207,15 @@ def serve(index) -> dict:
             # cost *= replicas
         # print("cost:", cost) # DEBUG
 
-    p = 1_000
-    for i in range(cost):
-        largestPrime(p)
-    LOCAL_RESPONSE_TIME = time.perf_counter() - start
+    if index == 0:
+        with tracer.start_active_span('svc0') as scope:
+            return serve_fn(start, cost, urls, index)
+    else:
+        span_ctx = tracer.extract(Format.HTTP_HEADERS, request.headers)
+        span_tags = {tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER}
+        with tracer.start_active_span('svc-non0', child_of=span_ctx, tags=span_tags):
+            return serve_fn(start, cost, urls, index)
 
-    if urls is None: # url list is empty => this is a leaf node
-        TOTAL_RESPONSE_TIME = time.time() - start
-        return {'urls': None, 'cost': cost }
-    else: # non-leaf node
-        try: # request might fail
-            _ = joblib.Parallel(prefer="threads", n_jobs=len(urls))((delayed(requests.get)("http://{}".format(url)) for url in urls))
-        except ConnectionError as e: # send page not found if it does
-            s = e.args[0].args[0].split()
-            host = s[0].split('=')[1].split(',')[0]
-            port = s[1].split('=')[1].split(')')[0]
-
-            TOTAL_RESPONSE_TIME = time.perf_counter() - start
-            
-            return failure_response("{}:{}".format(host, port), 404)
-    
-        TOTAL_RESPONSE_TIME = time.perf_counter() - start
-
-        return {'urls': list(urls), 'cost': cost} # doesn't matter what is returned
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0')

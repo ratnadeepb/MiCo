@@ -141,3 +141,7 @@ This script parses the [k8s_deployment](k8s_deployment/) folder to scale horizon
 ```
 
 **Note**: The hpa can't retrieve current utilisation unless resource limits are set up in the yaml files.
+
+## Instrumenting with Jaeger
+
+Following [Yuri Shukro's tutorial](https://github.com/yurishkuro/opentracing-tutorial/tree/master/python)
