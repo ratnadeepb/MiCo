@@ -13,8 +13,6 @@
 from flask import Flask, request
 from flask.wrappers import Response
 from joblib.parallel import delayed
-from opentracing.propagation import Format
-from opentracing.tracer import child_of
 import yaml
 import sys
 import time
@@ -24,9 +22,6 @@ from requests.exceptions import ConnectionError
 import joblib
 import logging
 import random
-# from jaeger_client import Config
-# from flask_opentracing import FlaskTracing
-import opentracing
 
 LOCAL_RESPONSE_TIME = 0
 TOTAL_RESPONSE_TIME = 0
@@ -89,20 +84,6 @@ def failure_response(url: str, status: int) -> Response:
 
 
 IS_BAD_SERVER = -1
-
-
-def before_request(headers, method, url, tracer: opentracing.global_tracer):
-    span_context = tracer.extract(
-        format=Format.HTTP_HEADERS,
-        carrier=headers
-    )
-
-    span = tracer.start_span(
-        child_of(span_context),
-        operation_name=method,
-    )
-
-    span.set_tag("http.url", url)
 
 
 @app.route('/svc/<int:index>', methods=['GET'])
