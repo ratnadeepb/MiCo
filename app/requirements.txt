@@ -3,3 +3,5 @@ psutil
 pyyaml
 requests
 joblib
+jaeger_client
+opentracing
