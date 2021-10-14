@@ -148,3 +148,8 @@ Following [Yuri Shukro's tutorial](https://github.com/yurishkuro/opentracing-tut
 
 [Deploying Jaeger in Kubernetes](https://www.digitalocean.com/community/tutorials/how-to-implement-distributed-tracing-with-jaeger-on-kubernetes)
 
+### Getting all trace data from Jaeger Query Service
+
+```bash
+curl localhost:16686/api/traces?service=testapp-svc-0&loopback=5h&prettyPrint=true&limit=1
+```
