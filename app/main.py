@@ -35,7 +35,8 @@ FREQ = 0
 
 def init_tracer(service):
     logging.getLogger('').handlers = []
-    logging.basicConfig(format='%(message)s', level=logging.DEBUG)
+    logging.basicConfig(format='%(message)s',
+                        level=logging.DEBUG, filename="mico.log")
 
     config = Config(
         config={
@@ -170,9 +171,6 @@ def serve(index) -> dict:
     START_TIME = tmp
 
     start = time.perf_counter()
-
-    # logger = logging.getLogger("mico_serve_logger")
-    logging.basicConfig(filename="mico.log")
 
     index = list({index})[0]  # get the number from the param
     data = parse_config()  # get config data
