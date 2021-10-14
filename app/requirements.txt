@@ -5,3 +5,4 @@ requests
 joblib
 jaeger_client
 opentracing
+opentracing_instrumentation

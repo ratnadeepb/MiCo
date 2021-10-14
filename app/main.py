@@ -25,6 +25,7 @@ import random
 from jaeger_client import Config
 from opentracing.ext import tags
 from opentracing.propagation import Format
+from opentracing_instrumentation.request_context import get_current_span
 
 LOCAL_RESPONSE_TIME = 0
 TOTAL_RESPONSE_TIME = 0
@@ -112,13 +113,16 @@ IS_BAD_SERVER = -1
 
 def http_get(url: str) -> requests.models.Response:
     """ This is a helper function so we can instrument the calls """
-    span = tracer.active_span
-    span.set_tag(tags.HTTP_METHOD, 'GET')
-    span.set_tag(tags.HTTP_URL, url)
-    span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
-    headers = {}
-    tracer.inject(span, Format.HTTP_HEADERS, headers)
-    requests.get(url, headers=headers)
+    with tracer.start_span('http_get') as span:
+        span.set_tag(tags.HTTP_METHOD, 'GET')
+        span.set_tag(tags.HTTP_URL, url)
+        span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
+        headers = {}
+        tracer.inject(span_context=span,
+                      format=Format.HTTP_HEADERS, carrier=headers)
+        span.log_kv({'event': 'http_get'})
+        return requests.get(url, headers=headers)
+        # return requests.get(url)
 
 
 def serve_fn(start, cost, urls, index):
@@ -213,7 +217,7 @@ def serve(index) -> dict:
     else:
         span_ctx = tracer.extract(Format.HTTP_HEADERS, request.headers)
         span_tags = {tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER}
-        with tracer.start_active_span('svc-non0', child_of=span_ctx, tags=span_tags):
+        with tracer.start_active_span('svc-non%s' % index, child_of=span_ctx, tags=span_tags):
             return serve_fn(start, cost, urls, index)
 
 

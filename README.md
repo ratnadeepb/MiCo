@@ -145,3 +145,6 @@ This script parses the [k8s_deployment](k8s_deployment/) folder to scale horizon
 ## Instrumenting with Jaeger
 
 Following [Yuri Shukro's tutorial](https://github.com/yurishkuro/opentracing-tutorial/tree/master/python)
+
+[Deploying Jaeger in Kubernetes](https://www.digitalocean.com/community/tutorials/how-to-implement-distributed-tracing-with-jaeger-on-kubernetes)
+
