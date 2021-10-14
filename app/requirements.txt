@@ -3,6 +3,6 @@ psutil
 pyyaml
 requests
 joblib
-jaeger_client
+jaeger_logger_reporter
 opentracing
 opentracing_instrumentation
