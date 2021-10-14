@@ -1,4 +1,5 @@
 #!/bin/bash
-kubectl delete -f k8s_deployment/
+export dir=$(dirname $(realpath $0))
+kubectl delete -f $dir/k8s_deployment/
 sleep 2
-./rm_hpa_rules.py
+$dir/rm_hpa_rules.py $dir
