@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 
-DEP_DIR = "k8s_deployment/"
+if len(sys.argv) == 2:
+    DEP_DIR = f"{sys.argv[1]}/k8s_deployment"
+else:
+    DEP_DIR = "k8s_deployment/"
 
 def delete_hpa_rules():
     for name in os.listdir(DEP_DIR):
