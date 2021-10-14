@@ -22,7 +22,8 @@ from requests.exceptions import ConnectionError
 import joblib
 import logging
 import random
-from jaeger_client import Config
+# from jaeger_client import Config
+from jaeger_logger_reporter import LoggerTraceConfig, LoggerTracerReporter
 from opentracing.ext import tags
 from opentracing.propagation import Format
 from opentracing_instrumentation.request_context import get_current_span
@@ -34,22 +35,38 @@ FREQ = 0
 
 
 def init_tracer(service):
-    logging.getLogger('').handlers = []
-    logging.basicConfig(format='%(message)s',
-                        level=logging.DEBUG, filename="mico.log")
+    # logging.getLogger('').handlers = []
+    # logging.basicConfig(format='%(message)s',
+    #                     level=logging.DEBUG, filename="mico.log")
 
-    config = Config(
+    tracer_logger = logging.getLogger("mico")
+    tracer_logger.setLevel(logging.DEBUG)
+
+    f_handler = logging.FileHandler("mico.log")
+    s_handler = logging.StreamHandler()
+    formatter = logging.Formatter(
+        '[%(levelname)s][%(date)s] %(name)s %(span)s %(event)s %(message)s')
+    s_handler.setFormatter(formatter)
+    s_handler.setLevel(logging.DEBUG)
+    f_handler.setFormatter(formatter)
+    f_handler.setLevel(logging.DEBUG)
+
+    tracer_logger.addHandler(s_handler)
+    tracer_logger.addHandler(f_handler)
+
+    config = LoggerTraceConfig(
         config={
             'sampler': {
                 'type': 'const',
                 'param': 1,
             },
             'logging': True,
+            'max_tag_value_length': sys.maxsize,
         },
         service_name=service
     )
 
-    return config.initialize_tracer()
+    return config.initialize_tracer(logger_reporter=LoggerTracerReporter(logger=tracer_logger))
 
 
 tracer = init_tracer('testapp-svc')
@@ -114,7 +131,7 @@ IS_BAD_SERVER = -1
 
 def http_get(url: str) -> requests.models.Response:
     """ This is a helper function so we can instrument the calls """
-    with tracer.start_span('http_get') as span:
+    with tracer.start_span('http_get', child_of=get_current_span()) as span:
         span.set_tag(tags.HTTP_METHOD, 'GET')
         span.set_tag(tags.HTTP_URL, url)
         span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
@@ -127,6 +144,8 @@ def http_get(url: str) -> requests.models.Response:
 
 
 def serve_fn(start, cost, urls, index):
+    global TOTAL_RESPONSE_TIME
+    global LOCAL_RESPONSE_TIME
     p = 1_000
     span = tracer.active_span
     span.log_kv(
@@ -136,7 +155,9 @@ def serve_fn(start, cost, urls, index):
     LOCAL_RESPONSE_TIME = time.perf_counter() - start
 
     if urls is None:  # url list is empty => this is a leaf node
-        TOTAL_RESPONSE_TIME = time.time() - start
+        TOTAL_RESPONSE_TIME = time.perf_counter() - start
+        span.log_kv({'index': index, 'event': 'url-none',
+                    'local-response-time': LOCAL_RESPONSE_TIME, 'total-response-time': TOTAL_RESPONSE_TIME})
         return {'urls': None, 'cost': cost}
     else:  # non-leaf node
         try:  # request might fail
@@ -160,8 +181,7 @@ def serve_fn(start, cost, urls, index):
 @app.route('/svc/<int:index>', methods=['GET'])
 def serve(index) -> dict:
     """ Main workhorse function of the app """
-    global LOCAL_RESPONSE_TIME
-    global TOTAL_RESPONSE_TIME
+    # global LOCAL_RESPONSE_TIME
     global START_TIME
     global FREQ
 
