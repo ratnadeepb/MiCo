@@ -7,7 +7,7 @@
     Make parallel calls to all urls in the urls list
     @return if all calls are successful, return success
             if any underlying call fails a 404 is returned
-            calling `/statistics` return CPU and memory usage in percent
+            calling `/statistics` return CPU and memory usage in percent along with function timings
 """
 
 from flask import Flask, request
