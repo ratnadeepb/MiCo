@@ -64,7 +64,7 @@ def init_tracer(service):
     return config.initialize_tracer(logger_reporter=LoggerTracerReporter(logger=tracer_logger))
 
 
-tracer = init_tracer('testapp-svc')
+# tracer = init_tracer('testapp-svc')
 
 app = Flask(__name__)
 
@@ -122,23 +122,24 @@ def failure_response(url: str, status: int) -> Response:
 
 
 IS_BAD_SERVER = -1
+tracer = None
 
 
-def http_get(url: str) -> requests.models.Response:
+def http_get(url: str, headers) -> requests.models.Response:
     """ This is a helper function so we can instrument the calls """
     with tracer.start_span('http_get', child_of=get_current_span()) as span:
-        span.set_tag(tags.HTTP_METHOD, 'GET')
-        span.set_tag(tags.HTTP_URL, url)
-        span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
-        headers = {}
-        tracer.inject(span_context=span,
-                      format=Format.HTTP_HEADERS, carrier=headers)
-        span.log_kv({'event': 'http_get'})
+        if not headers:
+            span.set_tag(tags.HTTP_METHOD, 'GET')
+            span.set_tag(tags.HTTP_URL, url)
+            span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
+            headers = {}
+            tracer.inject(span_context=span,
+                          format=Format.HTTP_HEADERS, carrier=headers)
+            span.log_kv({'event': 'http_get'})
         return requests.get(url, headers=headers)
-        # return requests.get(url)
 
 
-def serve_fn(start, cost, urls, index):
+def serve_fn(start, cost, urls, index, headers=None):
     global TOTAL_RESPONSE_TIME
     global LOCAL_RESPONSE_TIME
     p = 1_000
@@ -157,7 +158,7 @@ def serve_fn(start, cost, urls, index):
     else:  # non-leaf node
         try:  # request might fail
             _ = joblib.Parallel(prefer="threads", n_jobs=len(urls))(
-                (delayed(http_get)("http://{}".format(url)) for url in urls))
+                (delayed(http_get)("http://{}".format(url), headers) for url in urls))
         except ConnectionError as e:  # send page not found if it does
             s = e.args[0].args[0].split()
             host = s[0].split('=')[1].split(',')[0]
@@ -224,14 +225,20 @@ def serve(index) -> dict:
             # cost *= replicas
         # print("cost:", cost) # DEBUG
 
+    global tracer
+    if not tracer:
+        name = 'testapp-svc-%s' % index
+        tracer = init_tracer(name)
+
     if index == 0:
         with tracer.start_active_span('svc0') as scope:
             return serve_fn(start, cost, urls, index)
     else:
         span_ctx = tracer.extract(Format.HTTP_HEADERS, request.headers)
         span_tags = {tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER}
+        headers = request.headers
         with tracer.start_active_span('svc-non%s' % index, child_of=span_ctx, tags=span_tags):
-            return serve_fn(start, cost, urls, index)
+            return serve_fn(start, cost, urls, index, headers)
 
 
 if __name__ == "__main__":
