@@ -22,7 +22,6 @@ from requests.exceptions import ConnectionError
 import joblib
 import logging
 import random
-# from jaeger_client import Config
 from jaeger_logger_reporter import LoggerTraceConfig, LoggerTracerReporter
 from opentracing.ext import tags
 from opentracing.propagation import Format
@@ -35,10 +34,6 @@ FREQ = 0
 
 
 def init_tracer(service):
-    # logging.getLogger('').handlers = []
-    # logging.basicConfig(format='%(message)s',
-    #                     level=logging.DEBUG, filename="mico.log")
-
     tracer_logger = logging.getLogger("mico")
     tracer_logger.setLevel(logging.DEBUG)
 
