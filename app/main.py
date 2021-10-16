@@ -128,6 +128,7 @@ tracer = None
 def http_get(url: str, headers) -> requests.models.Response:
     """ This is a helper function so we can instrument the calls """
     with tracer.start_span('http_get', child_of=get_current_span()) as span:
+        # span = tracer.active_span
         if not headers:
             span.set_tag(tags.HTTP_METHOD, 'GET')
             span.set_tag(tags.HTTP_URL, url)
@@ -143,35 +144,36 @@ def serve_fn(start, cost, urls, index, headers=None):
     global TOTAL_RESPONSE_TIME
     global LOCAL_RESPONSE_TIME
     p = 1_000
-    span = tracer.active_span
-    span.log_kv(
-        {'index': index, 'event': 'ranging-over-cost', 'cost': cost})
-    for i in range(cost):
-        largestPrime(p)
-    LOCAL_RESPONSE_TIME = time.perf_counter() - start
+    # span = tracer.active_span
+    with tracer.start_span('http_get', child_of=get_current_span()) as span:
+        span.log_kv(
+            {'index': index, 'event': 'ranging-over-cost', 'cost': cost})
+        for i in range(cost):
+            largestPrime(p)
+        LOCAL_RESPONSE_TIME = time.perf_counter() - start
 
-    if urls is None:  # url list is empty => this is a leaf node
-        TOTAL_RESPONSE_TIME = time.perf_counter() - start
-        span.log_kv({'index': index, 'event': 'url-none',
-                    'local-response-time': LOCAL_RESPONSE_TIME, 'total-response-time': TOTAL_RESPONSE_TIME})
-        return {'urls': None, 'cost': cost}
-    else:  # non-leaf node
-        try:  # request might fail
-            _ = joblib.Parallel(prefer="threads", n_jobs=len(urls))(
-                (delayed(http_get)("http://{}".format(url), headers) for url in urls))
-        except ConnectionError as e:  # send page not found if it does
-            s = e.args[0].args[0].split()
-            host = s[0].split('=')[1].split(',')[0]
-            port = s[1].split('=')[1].split(')')[0]
+        if urls is None:  # url list is empty => this is a leaf node
+            TOTAL_RESPONSE_TIME = time.perf_counter() - start
+            span.log_kv({'index': index, 'event': 'url-none',
+                        'local-response-time': LOCAL_RESPONSE_TIME, 'total-response-time': TOTAL_RESPONSE_TIME})
+            return {'urls': None, 'cost': cost}
+        else:  # non-leaf node
+            try:  # request might fail
+                _ = joblib.Parallel(prefer="threads", n_jobs=len(urls))(
+                    (delayed(http_get)("http://{}".format(url), headers) for url in urls))
+            except ConnectionError as e:  # send page not found if it does
+                s = e.args[0].args[0].split()
+                host = s[0].split('=')[1].split(',')[0]
+                port = s[1].split('=')[1].split(')')[0]
+
+                TOTAL_RESPONSE_TIME = time.perf_counter() - start
+
+                return failure_response("{}:{}".format(host, port), 404)
 
             TOTAL_RESPONSE_TIME = time.perf_counter() - start
 
-            return failure_response("{}:{}".format(host, port), 404)
-
-        TOTAL_RESPONSE_TIME = time.perf_counter() - start
-
-        # doesn't matter what is returned
-        return {'urls': list(urls), 'cost': cost}
+            # doesn't matter what is returned
+            return {'urls': list(urls), 'cost': cost}
 
 
 @app.route('/svc/<int:index>', methods=['GET'])
