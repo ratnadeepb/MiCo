@@ -148,6 +148,14 @@ Following [Yuri Shukro's tutorial](https://github.com/yurishkuro/opentracing-tut
 
 [Deploying Jaeger in Kubernetes](https://www.digitalocean.com/community/tutorials/how-to-implement-distributed-tracing-with-jaeger-on-kubernetes)
 
+### Getting Jaeger on Localhost
+
+```bash
+ssh -L 9000:localhost:16686 node0
+```
+
+forwards remote port 16686 over ssh to local port 9000
+
 ### Getting all trace data from Jaeger Query Service
 
 ```bash
