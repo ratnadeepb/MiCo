@@ -228,19 +228,22 @@ def serve(index) -> dict:
         # print("cost:", cost) # DEBUG
 
     global tracer
+    name = 'testapp-svc-%s' % index
     if not tracer:
-        name = 'testapp-svc-%s' % index
         tracer = init_tracer(name)
 
-    if index == 0:
-        with tracer.start_active_span('svc0') as scope:
-            return serve_fn(start, cost, urls, index)
-    else:
-        span_ctx = tracer.extract(Format.HTTP_HEADERS, request.headers)
-        span_tags = {tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER}
-        headers = request.headers
-        with tracer.start_active_span('svc-non%s' % index, child_of=span_ctx, tags=span_tags):
-            return serve_fn(start, cost, urls, index, headers)
+    # if index == 0:
+    #     with tracer.start_span('svc-0') as _span:
+    #         return serve_fn(start, cost, urls, index)
+    # else:
+    #     span_ctx = tracer.extract(Format.HTTP_HEADERS, request.headers)
+    #     span_tags = {tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER}
+    #     headers = request.headers
+    #     with tracer.start_span('svc-non%s' % index, child_of=span_ctx, tags=span_tags) as _span:
+    #         return serve_fn(start, cost, urls, index, headers)
+    name
+    with tracer.start_span(name) as _span:
+        return serve_fn(start, cost, urls, index)
 
 
 if __name__ == "__main__":
