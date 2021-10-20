@@ -30,7 +30,7 @@ spec:
         app: testapp-svc-2
     spec:
       containers:
-      - image: ratnadeepb/testapp:latest
+      - image: ratnadeepb/testapp:bad-leaves
         name: testapp-svc-2
         ports:
         - containerPort: 5000
