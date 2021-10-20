@@ -86,16 +86,46 @@ def failure_response(url: str, status: int) -> Response:
 IS_BAD_SERVER = -1
 
 
+def http_get(url: str) -> requests.models.Response:
+    """ This is a helper function so we can instrument the calls """
+    return requests.get(url)
+
+
+def serve_fn(start, cost, urls, index, headers=None):
+    global TOTAL_RESPONSE_TIME
+    global LOCAL_RESPONSE_TIME
+    p = 1_000
+    for i in range(cost):
+        largestPrime(p)
+    LOCAL_RESPONSE_TIME = time.perf_counter() - start
+    if urls is None:  # url list is empty => this is a leaf node
+        TOTAL_RESPONSE_TIME = time.perf_counter() - start
+        return {'urls': None, 'cost': cost}
+    else:  # non-leaf node
+        try:  # request might fail
+            _ = joblib.Parallel(prefer="threads", n_jobs=len(urls))(
+                (delayed(http_get)("http://{}".format(url), headers) for url in urls))
+        except ConnectionError as e:  # send page not found if it does
+            s = e.args[0].args[0].split()
+            host = s[0].split('=')[1].split(',')[0]
+            port = s[1].split('=')[1].split(')')[0]
+
+            TOTAL_RESPONSE_TIME = time.perf_counter() - start
+
+            return failure_response("{}:{}".format(host, port), 404)
+
+        TOTAL_RESPONSE_TIME = time.perf_counter() - start
+
+        # doesn't matter what is returned
+        return {'urls': list(urls), 'cost': cost}
+
+
 @app.route('/svc/<int:index>', methods=['GET'])
 def serve(index) -> dict:
     """ Main workhorse function of the app """
-    global LOCAL_RESPONSE_TIME
-    global TOTAL_RESPONSE_TIME
     global START_TIME
     global FREQ
 
-    headers = request.headers
-    method = request.method
     # measure how many requests are we getting
     tmp = time.perf_counter()
     FREQ = tmp - START_TIME
@@ -143,31 +173,7 @@ def serve(index) -> dict:
             # cost *= replicas
         # print("cost:", cost) # DEBUG
 
-    p = 1_000
-    for i in range(cost):
-        largestPrime(p)
-    LOCAL_RESPONSE_TIME = time.perf_counter() - start
-
-    if urls is None:  # url list is empty => this is a leaf node
-        TOTAL_RESPONSE_TIME = time.time() - start
-        return {'urls': None, 'cost': cost}
-    else:  # non-leaf node
-        try:  # request might fail
-            _ = joblib.Parallel(prefer="threads", n_jobs=len(urls))(
-                (delayed(requests.get)("http://{}".format(url)) for url in urls))
-        except ConnectionError as e:  # send page not found if it does
-            s = e.args[0].args[0].split()
-            host = s[0].split('=')[1].split(',')[0]
-            port = s[1].split('=')[1].split(')')[0]
-
-            TOTAL_RESPONSE_TIME = time.perf_counter() - start
-
-            return failure_response("{}:{}".format(host, port), 404)
-
-        TOTAL_RESPONSE_TIME = time.perf_counter() - start
-
-        # doesn't matter what is returned
-        return {'urls': list(urls), 'cost': cost}
+    return serve_fn(start, cost, urls, index)
 
 
 if __name__ == "__main__":
