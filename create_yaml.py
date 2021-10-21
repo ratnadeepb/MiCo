@@ -56,6 +56,7 @@ def writeConfig(image):
                                             'spec': {'containers':
                                                      [{'name': name,
                                                        'image': image,
+                                                       'imagePullPolicy': 'Always',
                                                        'ports': [
                                                            {'containerPort': 5000}
                                                        ],

@@ -127,53 +127,55 @@ tracer = None
 
 def http_get(url: str, headers) -> requests.models.Response:
     """ This is a helper function so we can instrument the calls """
-    # with tracer.start_span('http_get', child_of=get_current_span()) as span:
-    span = tracer.active_span
-    if not headers:
-        span.set_tag(tags.HTTP_METHOD, 'GET')
-        span.set_tag(tags.HTTP_URL, url)
-        span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
-        headers = {}
-        tracer.inject(span_context=span,
-                      format=Format.HTTP_HEADERS, carrier=headers)
-        span.log_kv({'event': 'http_get'})
-    return requests.get(url, headers=headers)
+    global tracer
+    with tracer.start_active_span('http_get', child_of=get_current_span()) as scope:
+        # span = tracer.active_span
+        if not headers:
+            scope.span.set_tag(tags.HTTP_METHOD, 'GET')
+            scope.span.set_tag(tags.HTTP_URL, url)
+            scope.span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
+            headers = {}
+            tracer.inject(span_context=scope.span,
+                          format=Format.HTTP_HEADERS, carrier=headers)
+            scope.span.log_kv({'event': 'http_get'})
+        return requests.get(url, headers=headers)
 
 
 def serve_fn(start, cost, urls, index, headers=None):
     global TOTAL_RESPONSE_TIME
     global LOCAL_RESPONSE_TIME
     p = 1_000
-    span = tracer.active_span
-    # with tracer.start_span('http_get', child_of=get_current_span()) as span:
-    span.log_kv(
-        {'index': index, 'event': 'ranging-over-cost', 'cost': cost})
-    for i in range(cost):
-        largestPrime(p)
-    LOCAL_RESPONSE_TIME = time.time() - start
+    global tracer
+    # span = tracer.active_span
+    with tracer.start_active_span('http_get', child_of=get_current_span()) as scope:
+        scope.span.log_kv(
+            {'index': index, 'event': 'ranging-over-cost', 'cost': cost})
+        for i in range(cost):
+            largestPrime(p)
+        LOCAL_RESPONSE_TIME = time.time() - start
 
-    if urls is None:  # url list is empty => this is a leaf node
-        TOTAL_RESPONSE_TIME = time.time() - start
-        span.log_kv({'index': index, 'event': 'url-none',
-                    'local-response-time': LOCAL_RESPONSE_TIME, 'total-response-time': TOTAL_RESPONSE_TIME})
-        return {'urls': None, 'cost': cost}
-    else:  # non-leaf node
-        try:  # request might fail
-            _ = joblib.Parallel(prefer="threads", n_jobs=len(urls))(
-                (delayed(http_get)("http://{}".format(url), headers) for url in urls))
-        except ConnectionError as e:  # send page not found if it does
-            s = e.args[0].args[0].split()
-            host = s[0].split('=')[1].split(',')[0]
-            port = s[1].split('=')[1].split(')')[0]
+        if urls is None:  # url list is empty => this is a leaf node
+            TOTAL_RESPONSE_TIME = time.time() - start
+            scope.span.log_kv({'index': index, 'event': 'url-none',
+                               'local-response-time': LOCAL_RESPONSE_TIME, 'total-response-time': TOTAL_RESPONSE_TIME})
+            return {'urls': None, 'cost': cost}
+        else:  # non-leaf node
+            try:  # request might fail
+                _ = joblib.Parallel(prefer="threads", n_jobs=len(urls))(
+                    (delayed(http_get)("http://{}".format(url), headers) for url in urls))
+            except ConnectionError as e:  # send page not found if it does
+                s = e.args[0].args[0].split()
+                host = s[0].split('=')[1].split(',')[0]
+                port = s[1].split('=')[1].split(')')[0]
+
+                TOTAL_RESPONSE_TIME = time.time() - start
+
+                return failure_response("{}:{}".format(host, port), 404)
 
             TOTAL_RESPONSE_TIME = time.time() - start
 
-            return failure_response("{}:{}".format(host, port), 404)
-
-        TOTAL_RESPONSE_TIME = time.time() - start
-
-        # doesn't matter what is returned
-        return {'urls': list(urls), 'cost': cost}
+            # doesn't matter what is returned
+            return {'urls': list(urls), 'cost': cost}
 
 
 @app.route('/svc/<int:index>', methods=['GET'])
@@ -233,13 +235,13 @@ def serve(index) -> dict:
         tracer = init_tracer(name)
 
     if index == 0:
-        with tracer.start_span('svc-0') as _span:
+        with tracer.start_active_span('svc-0') as _span:
             return serve_fn(start, cost, urls, index)
     else:
         span_ctx = tracer.extract(Format.HTTP_HEADERS, request.headers)
         span_tags = {tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER}
         headers = request.headers
-        with tracer.start_span('svc-non%s' % index, child_of=span_ctx, tags=span_tags) as _span:
+        with tracer.start_active_span('svc-non%s' % index, child_of=span_ctx, tags=span_tags) as _span:
             return serve_fn(start, cost, urls, index, headers)
 
 
