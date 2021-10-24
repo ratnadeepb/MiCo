@@ -8,5 +8,4 @@ RUN python3 -m venv /opt/venv
 RUN . /opt/venv/bin/activate && pip install -r requirements.txt
 
 EXPOSE 5000
-# CMD ["python", "/app/main.py"]
 CMD . /opt/venv/bin/activate && exec python /app/main.py
