@@ -3,10 +3,10 @@ FROM python:3.9
 RUN mkdir /app
 WORKDIR /app
 ADD . /app/
-RUN pip install -r requirements.txt
+
+RUN python3 -m venv /opt/venv
+RUN . /opt/venv/bin/activate && pip install -r requirements.txt
 
 EXPOSE 5000
-CMD ["python", "/app/main.py"]
-
-# ENV FLASK_APP main.py
-# CMD flask run --host=0.0.0.0 --port=5000
+# CMD ["python", "/app/main.py"]
+CMD . /opt/venv/bin/activate && exec python /app/main.py
