@@ -3,7 +3,8 @@ import networkx as nx
 import yaml
 
 # values to be collected from users
-svc_count = 3
+node_count = 3
+edge_count = 2
 replicas = [2, 4, 2]
 costs = [2, 2, 4]
 bads = [0, 0, 1]
@@ -11,10 +12,10 @@ fname = "test-config.yaml"
 # =================================
 
 map = {}
-for i in range(svc_count):
+for i in range(node_count):
     map[i] = 'testapp-svc-%s' % i
 
-G = nx.complete_graph(len(map))
+G = nx.binomial_graph(node_count, edge_count)
 
 H = nx.relabel_nodes(G, map)
 

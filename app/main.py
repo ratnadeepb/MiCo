@@ -146,10 +146,10 @@ def serve(index) -> dict:
     p = 1_000
     for i in range(cost):
         largestPrime(p)
-    LOCAL_RESPONSE_TIME = time.perf_counter() - start
+    LOCAL_RESPONSE_TIME = time.time() - start
 
-    if urls is None:  # url list is empty => this is a leaf node
-        TOTAL_RESPONSE_TIME = time.time() - start
+    if urls is None or len(urls) == 0:  # url list is empty => this is a leaf node
+        TOTAL_RESPONSE_TIME = time.perf_counter() - start
         return {'urls': None, 'cost': cost}
     else:  # non-leaf node
         try:  # request might fail
