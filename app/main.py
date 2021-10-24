@@ -154,7 +154,8 @@ def serve_fn(start, cost, urls, index, headers=None):
             largestPrime(p)
         LOCAL_RESPONSE_TIME = time.time() - start
 
-        if urls is None:  # url list is empty => this is a leaf node
+        # url list is empty => this is a leaf node
+        if urls is None or len(urls) == 0:
             TOTAL_RESPONSE_TIME = time.time() - start
             scope.span.log_kv({'index': index, 'event': 'url-none',
                                'local-response-time': LOCAL_RESPONSE_TIME, 'total-response-time': TOTAL_RESPONSE_TIME})

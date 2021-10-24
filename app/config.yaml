@@ -1,21 +1,18 @@
-- index: 0
-  svc: 
-    - testapp-svc-1:5000/svc/1
-    - testapp-svc-2:5000/svc/2
-  replicas: 2
+- bads: 0
   cost: 2
-  bads: 0
-
-- index: 1
+  index: 0
+  replicas: 2
   svc:
-    - testapp-svc-2:5000/svc/2
+  - testapp-svc-1:5000/svc/1
+  - testapp-svc-2:5000/svc/2
+- bads: 0
+  cost: 2
+  index: 1
   replicas: 4
-  cost: 2
-  bads: 0
-
-- index: 2
   svc:
-  replicas: 2
+  - testapp-svc-2:5000/svc/2
+- bads: 1
   cost: 4
-  bads: 1
-  
+  index: 2
+  replicas: 2
+  svc: []
