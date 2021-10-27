@@ -45,10 +45,8 @@ def writeConfig(image):
         deployment = {'apiVersion': 'apps/v1',
                       'kind': 'Deployment',
                       'metadata': {'name': name,
-                                   'labels': {'app': name
-                                              },
-                                   "annotations": {
-                                       "sidecar.jaegertracing.io/inject": "true"}
+                                   'labels': {'app': name},
+                                #    'annotations': {"sidecar.jaegertracing.io/inject": "true"}
                                    },
                       'spec': {'replicas': replicas,
                                'selector': {'matchLabels': {'app': name}},
@@ -56,7 +54,6 @@ def writeConfig(image):
                                             'spec': {'containers':
                                                      [{'name': name,
                                                        'image': image,
-                                                       'imagePullPolicy': 'Always',
                                                        'ports': [
                                                            {'containerPort': 5000}
                                                        ],

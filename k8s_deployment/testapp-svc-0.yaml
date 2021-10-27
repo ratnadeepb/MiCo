@@ -32,8 +32,12 @@ spec:
         app: testapp-svc-0
     spec:
       containers:
+<<<<<<< HEAD
       - image: ratnadeepb/testapp:jaeger
         imagePullPolicy: Always
+=======
+      - image: ratnadeepb/testapp:bad-leaves
+>>>>>>> da412231548aaa7697b26f752019b066fb585517
         name: testapp-svc-0
         ports:
         - containerPort: 5000

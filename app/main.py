@@ -112,6 +112,7 @@ def get_stats() -> dict:
             'mem': mem_usage(),
             'local_response_time':  LOCAL_RESPONSE_TIME,
             'total_response_time': TOTAL_RESPONSE_TIME,
+
             'time': FREQ
             }
 
@@ -186,6 +187,8 @@ def serve(index) -> dict:
     global START_TIME
     global FREQ
 
+    headers = request.headers
+    method = request.method
     # measure how many requests are we getting
     tmp = time.time()
     FREQ = tmp - START_TIME

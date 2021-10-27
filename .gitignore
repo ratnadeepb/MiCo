@@ -1,1 +1,2 @@
 app/mico.log
+k8s_deployment/*.yaml
