@@ -105,6 +105,11 @@ def mem_usage():
     return psutil.virtual_memory().percent
 
 
+@app.route("/health_check", methods=["GET"])
+def health_check():
+    return "OK\n"
+
+
 @app.route("/statistics", methods=['GET'])
 def get_stats() -> dict:
     """ Get data about CPU and memory usage """
