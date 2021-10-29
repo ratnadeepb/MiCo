@@ -46,7 +46,7 @@ def writeConfig(image):
                       'kind': 'Deployment',
                       'metadata': {'name': name,
                                    'labels': {'app': name},
-                                #    'annotations': {"sidecar.jaegertracing.io/inject": "true"}
+                                   'annotations': {"sidecar.jaegertracing.io/inject": "true"}
                                    },
                       'spec': {'replicas': replicas,
                                'selector': {'matchLabels': {'app': name}},
